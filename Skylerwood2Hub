@@ -1,198 +1,167 @@
-print("Injected")
-local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
--- Create the main GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AdminButtonGui"
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local playerWindow, miscWindow
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 250)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
-MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1) -- Dark gray
-MainFrame.BorderSizePixel = 0
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.Parent = ScreenGui
-
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 30)
-Header.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2) -- Slightly lighter gray
-Header.BorderSizePixel = 0
-Header.Parent = MainFrame
-
-local Title = Instance.new("TextLabel")
-Title.Text = "Alban's Hub"
-Title.Size = UDim2.new(1, -40, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.Font = Enum.Font.SourceSans
-Title.TextSize = 20
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.BackgroundTransparency = 1
-Title.Parent = Header
-
-local CloseButton = Instance.new("TextButton")
-CloseButton.Text = "X"
-CloseButton.Size = UDim2.new(0, 30, 1, 0)
-CloseButton.Position = UDim2.new(1, -30, 0, 0)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 20
-CloseButton.TextColor3 = Color3.new(1, 0, 0)
-CloseButton.BackgroundTransparency = 1
-CloseButton.Parent = Header
-
-local ToggleFrame = Instance.new("Frame")
-ToggleFrame.Size = UDim2.new(1, -20, 0, 50)
-ToggleFrame.Position = UDim2.new(0, 10, 0, 50)
-ToggleFrame.BackgroundTransparency = 1
-ToggleFrame.Parent = MainFrame
-
-local ToggleLabel = Instance.new("TextLabel")
-ToggleLabel.Text = "Gifts Farm"
-ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
-ToggleLabel.Font = Enum.Font.SourceSans
-ToggleLabel.TextSize = 20
-ToggleLabel.TextColor3 = Color3.new(1, 1, 1)
-ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-ToggleLabel.BackgroundTransparency = 1
-ToggleLabel.Parent = ToggleFrame
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Text = "OFF"
-ToggleButton.Size = UDim2.new(0.3, 0, 1, 0)
-ToggleButton.Position = UDim2.new(0.7, 0, 0, 0)
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.TextSize = 20
-ToggleButton.BackgroundColor3 = Color3.new(1, 0, 0) -- Red
-ToggleButton.TextColor3 = Color3.new(1, 1, 1)
-ToggleButton.Parent = ToggleFrame
-
-local SpecialButton = Instance.new("TextButton")
-SpecialButton.Text = "TP to Special"
-SpecialButton.Size = UDim2.new(1, -20, 0, 40)
-SpecialButton.Position = UDim2.new(0, 10, 0, 120)
-SpecialButton.Font = Enum.Font.SourceSansBold
-SpecialButton.TextSize = 20
-SpecialButton.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3) -- Gray
-SpecialButton.TextColor3 = Color3.new(1, 1, 1)
-SpecialButton.Parent = MainFrame
-
--- Variables to manage teleportation
-local isActive = false
-local teleporting = false
-local dragging = false
-local dragStart
-local startPosition
-local isMinimized = false
-
--- Function to teleport player to all gifts
-local function teleportToGifts()
-    local giftsFolder = workspace:FindFirstChild("Christmas") and workspace.Christmas:FindFirstChild("Gifts")
-    if not giftsFolder or not giftsFolder:IsA("Folder") then
-        warn("Gifts folder not found in workspace.Christmas")
-        return
+-- Function to create a draggable window
+local function createWindow(name, color, position, size)
+    local screenGui = player:FindFirstChild("PlayerGui"):FindFirstChild("ScreenGui")
+    if not screenGui then
+        screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "ScreenGui"
+        screenGui.Parent = player:WaitForChild("PlayerGui") -- Ensure PlayerGui is loaded
     end
 
-    for _, gift in ipairs(giftsFolder:GetChildren()) do
-        if not isActive then break end -- Stop teleporting if deactivated
-        if gift:IsA("BasePart") then
-            local character = player.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                character.HumanoidRootPart.CFrame = gift.CFrame + Vector3.new(0, 5, 0) -- Teleport above the gift
-                wait(1) -- Wait 1 second before teleporting to the next gift
-            end
+    local window = Instance.new("Frame")
+    window.Name = name
+    window.Size = size
+    window.Position = position
+    window.BackgroundColor3 = color
+    window.BorderSizePixel = 1
+    window.Visible = true
+    window.Parent = screenGui
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    title.Text = name
+    title.TextScaled = true
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Parent = window
+
+    -- Dragging functionality
+    local dragging = false
+    local dragStart, startPos
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = window.Position
         end
-    end
-    teleporting = false
+    end)
+
+    title.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            window.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
+        end
+    end)
+
+    title.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    return window
 end
 
--- Teleport to a special model
-local function teleportToSpecial()
-    local specialsFolder = workspace:FindFirstChild("Christmas") and workspace.Christmas:FindFirstChild("Specials")
-    if not specialsFolder or not specialsFolder:IsA("Folder") then
-        warn("Specials folder not found in workspace.Christmas")
-        return
-    end
+-- Function to create sliders in the Player window
+local function createSlider(window, labelText, minValue, maxValue, defaultValue, position, onValueChanged)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 50)
+    frame.Position = position
+    frame.BackgroundTransparency = 1
+    frame.Parent = window
 
-    local validNames = {"SkinBox1", "SkinBox2", "SkinBox3", "Sack"}
-    for _, item in ipairs(specialsFolder:GetChildren()) do
-        if item:IsA("Model") and table.find(validNames, item.Name) then
-            local primaryPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-            if primaryPart then
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    character.HumanoidRootPart.CFrame = primaryPart.CFrame + Vector3.new(0, 5, 0) -- Teleport above the model
-                    return
-                end
-            else
-                warn("No primary part found for model: " .. item.Name)
-            end
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = labelText .. ": " .. defaultValue
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Parent = frame
+
+    local slider = Instance.new("TextButton")
+    slider.Size = UDim2.new(0.5, -10, 0.5, 0)
+    slider.Position = UDim2.new(0.5, 5, 0.25, 0)
+    slider.Text = "Drag"
+    slider.BackgroundColor3 = Color3.new(0.5, 0.5, 0.5)
+    slider.Parent = frame
+
+    local dragging = false
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
         end
-    end
+    end)
 
-    warn("No valid special models found (SkinBox1, SkinBox2, SkinBox3, Sack).")
+    slider.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X
+            local sliderFrame = frame.AbsoluteSize.X
+            local sliderStart = frame.AbsolutePosition.X
+            local percentage = math.clamp((mouseX - sliderStart) / sliderFrame, 0, 1)
+            local value = math.floor(minValue + percentage * (maxValue - minValue))
+            label.Text = labelText .. ": " .. value
+            onValueChanged(value)
+        end
+    end)
+
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
 end
 
--- Toggle button click event
-ToggleButton.MouseButton1Click:Connect(function()
-    isActive = not isActive
-    if isActive then
-        ToggleButton.Text = "ON"
-        ToggleButton.BackgroundColor3 = Color3.new(0, 1, 0) -- Green
-        teleporting = true
-        teleportToGifts()
+-- Function to toggle window visibility
+local function toggleWindows()
+    if playerWindow and miscWindow then
+        local visible = playerWindow.Visible
+        playerWindow.Visible = not visible
+        miscWindow.Visible = not visible
     else
-        ToggleButton.Text = "OFF"
-        ToggleButton.BackgroundColor3 = Color3.new(1, 0, 0) -- Red
-        teleporting = false
+        -- Create Player Window
+        playerWindow = createWindow("Player", Color3.fromRGB(100, 150, 255), UDim2.new(0.1, 0, 0.1, 0), UDim2.new(0, 300, 0, 200))
+        
+        -- Add Walk Speed Slider
+        createSlider(playerWindow, "Walk Speed", 16, 100, 16, UDim2.new(0, 0, 0.3, 0), function(value)
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = value
+            end
+        end)
+        
+        -- Add Jump Power Slider
+        createSlider(playerWindow, "Jump Power", 50, 200, 50, UDim2.new(0, 0, 0.6, 0), function(value)
+            if character:FindFirstChild("Humanoid") then
+                local humanoid = character.Humanoid
+                humanoid.UseJumpPower = true -- Ensure JumpPower is used instead of JumpHeight
+                humanoid.JumpPower = value -- Update JumpPower
+            end
+        end)
+
+        -- Create Misc Window
+        miscWindow = createWindow("Misc", Color3.fromRGB(255, 100, 150), UDim2.new(0.3, 0, 0.3, 0), UDim2.new(0, 300, 0, 200))
     end
-end)
+end
 
--- Special button click event
-SpecialButton.MouseButton1Click:Connect(function()
-    teleportToSpecial()
-end)
+-- Function to delete (destroy) the windows
+local function deleteWindows()
+    if playerWindow then
+        playerWindow:Destroy()
+        playerWindow = nil
+    end
+    if miscWindow then
+        miscWindow:Destroy()
+        miscWindow = nil
+    end
+end
 
--- Close button functionality
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
--- Minimize and reopen with the right Ctrl key
+-- Input handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+
+    -- Toggle visibility with RightControl
     if input.KeyCode == Enum.KeyCode.RightControl then
-        isMinimized = not isMinimized
-        MainFrame.Visible = not isMinimized
+        toggleWindows()
     end
-end)
 
--- Drag functionality
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPosition = MainFrame.Position
-    end
-end)
-
-Header.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(
-            startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
-        )
-    end
-end)
-
-Header.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
+    -- Delete windows with V key
+    if input.KeyCode == Enum.KeyCode.V then
+        deleteWindows()
     end
 end)
